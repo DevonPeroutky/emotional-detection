@@ -6,8 +6,6 @@ import json
 from deepface import DeepFace
 from deepface.commons import functions, realtime, distance as dst
 
-print("WHAT's up BRUV")
-
 # Load the cascade
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
@@ -22,15 +20,11 @@ def write_output(payload):
         fifo.write(json.dumps(json_data) + "\n")
         
 def analyze_face(face_image):
-    # gray_img = functions.preprocess_face(img = face_image, target_size = (48, 48), grayscale = True, enforce_detection = False, detector_backend = 'opencv')
-    # emotion_predictions = emotion_model.predict(gray_img)[0,:]
-    # print(emotion_predictions)
-    # sum_of_predictions = emotion_predictions.sum()
     try:
         return DeepFace.analyze(img_path = face_image, actions = ['emotion'])
     except ValueError:
         # Change this??? Maybe random? Maybe no-op... Make neutral no-op?
-        return { 'emotion': {'neutral': 1.0}, 'dominant_emotion': 'neutral' }
+        return {}
 
 # -------------
 # SETUP
@@ -39,11 +33,6 @@ PIPE_NAME = "EMOTIONAL_PIPE"
 # create_output_pipe(PIPE_NAME)
 tic = time.time()
 face_frame_count = 6
-freeze = False
-freezed_frames = 0
-dom_emotion = None
-
-print("DOING THIS")
 
 # Capture video from the primary webcamera
 cap = cv2.VideoCapture(0)
@@ -60,41 +49,38 @@ while True:
     # Detect Faces
     faces = face_cascade.detectMultiScale(img_grayscale, 1.1, 4)
 
-    if faces is None or faces == []:
+    # Discard "small" (erroneous) faces
+    filtered_faces = [(x, y, w, h) for (x, y, w, h) in faces if w > 130]
+
+    # If no faces were detected, simply loop
+    if filtered_faces is None or filtered_faces == []:
         face_frame_count = 6
+        print("NO FACES")
+        continue
 
+    face_frame_count -= 1
+    emotion_hotspots = []
 
-    #  Draw rectangle around the faces
-    for (x, y, w, h) in faces:
-        if w > 130: # discard small "faces"
-            cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
+    for (x, y, w, h) in filtered_faces:
 
+        # Draw rectangle around face
+        cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-            if (dom_emotion and freezed_frames < 10):
-                freezed_frames += 1
-                cv2.putText(img, dom_emotion, (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
-                continue
+        # Detect the emotions if 5 consecutive frames of a Face
+        if face_frame_count == 1:
+            raw_img = img.copy()
+            custom_face = raw_img[y:y+h, x:x+w]
+            emotions = analyze_face(custom_face)
+            emotion_hotspots.append(emotions)
+            cv2.putText(img, "OUTPUT", (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
 
+            # Reset face_frame_count
+            face_frame_count = 6
+        else:
+            cv2.putText(img, str(face_frame_count), (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
 
-            # Detect the emotions if 5 consecutive frames of a Face
-            if face_frame_count == 1:
-                raw_img = img.copy()
-                custom_face = raw_img[y:y+h, x:x+w]
-                emotions = analyze_face(custom_face)
-                write_output(emotions)
-                dom_emotion = emotions.get('dominant_emotion', 'neutral') if emotions else 'neutral'
-
-                # Start Freeze & face_frame_count
-                freeze = True
-                face_frame_count = 6
-            else:
-                freeze = False
-                freezed_frames = 0
-                face_frame_count -= 1
-                dom_emotion = None
-                cv2.putText(img, str(face_frame_count), (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
-
-
+    write_output([e for e in emotion_hotspots if e])
+    
     # Display the output
     cv2.imshow('img', img)
 
