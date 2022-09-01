@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "emotional-detection"
+version = "0.1.0"
+description = ""
+authors = ["DevonPeroutky <devonperoutky@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "~3.9"
+opencv-python = "^4.6.0"
+h5py = "^3.7.0"
+scipy = "^1.9.1"
+deepface = "^0.0.75"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
