@@ -1,3 +1,5 @@
 # The unix output pipe of our program
 EMOTIONAL_PIPE
 
+dist/
+

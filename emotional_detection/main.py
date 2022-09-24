@@ -3,6 +3,7 @@ import os
 import time
 import ast
 import json
+import imutils
 from deepface import DeepFace
 from deepface.commons import functions, realtime, distance as dst
 
@@ -15,24 +16,25 @@ def create_output_pipe(pipe_name):
 def write_output(payload):
     global PIPE_NAME
     with open(PIPE_NAME, 'w') as fifo:
+        # Convert double quotes to single quotes.
         json_data = ast.literal_eval(str(payload))
-        print(json_data)
-        fifo.write(json.dumps(json_data) + "\n")
+        fifo.write(json.dumps(json_data) + '\n')
         
 def analyze_face(face_image):
     try:
         return DeepFace.analyze(img_path = face_image, actions = ['emotion'])
     except ValueError:
         # Change this??? Maybe random? Maybe no-op... Make neutral no-op?
+        print("Error analzing face")
         return {}
 
 # -------------
 # SETUP
 # -------------
-PIPE_NAME = "EMOTIONAL_PIPE"
-# create_output_pipe(PIPE_NAME)
+PIPE_NAME = "/tmp/EMOTIONAL_PIPE"
 tic = time.time()
-face_frame_count = 6
+face_frame_count_threshold = 3
+face_frame_count = face_frame_count_threshold
 
 # Capture video from the primary webcamera
 cap = cv2.VideoCapture(0)
@@ -42,6 +44,9 @@ while True:
 
     if img is None:
         break
+
+    # Resize image to full screen
+    img = imutils.resize(img, width=1120)
 
     # Convert into grayscale
     img_grayscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -54,8 +59,7 @@ while True:
 
     # If no faces were detected, simply loop
     if filtered_faces is None or filtered_faces == []:
-        face_frame_count = 6
-        print("NO FACES")
+        face_frame_count = face_frame_count_threshold
         continue
 
     face_frame_count -= 1
@@ -66,21 +70,27 @@ while True:
         # Draw rectangle around face
         cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
 
-        # Detect the emotions if 5 consecutive frames of a Face
+        # Detect the emotions if enough consecutive frames of a Face
         if face_frame_count == 1:
             raw_img = img.copy()
             custom_face = raw_img[y:y+h, x:x+w]
-            emotions = analyze_face(custom_face)
-            emotion_hotspots.append(emotions)
+            emotion = analyze_face(custom_face)
+            if emotion:
+                emotion['region']['x'] = x + w/2
+                emotion['region']['y'] = y + h/2
+                emotion_hotspots.append(emotion)
             cv2.putText(img, "OUTPUT", (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
 
             # Reset face_frame_count
-            face_frame_count = 6
+            face_frame_count = face_frame_count_threshold
         else:
-            cv2.putText(img, str(face_frame_count), (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
+            # cv2.putText(img, str(x+w/4), (int(x+w/4),int(y+h/1.5)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
+            cv2.putText(img, str(w), (int(x+w/2),int(y+h/1)), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 2)
 
-    write_output([e for e in emotion_hotspots if e])
-    
+    e = [e for e in emotion_hotspots if e]
+    if e:
+        write_output(e)
+
     # Display the output
     cv2.imshow('img', img)
 

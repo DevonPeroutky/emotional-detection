@@ -1,0 +1,10 @@
+# Copy this file, replace the name (below) and filename, and then run "conda env create -f env.yml"
+
+name: emotional-detection-environment
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip  # pip must be mentioned explicitly, or conda-lock will fail
+  - poetry=1.*  # or 1.1.*, or no version at all -- as you wan

@@ -1,8 +1,11 @@
 [tool.poetry]
 name = "emotional-detection"
-version = "0.1.0"
-description = ""
+version = "0.1.3"
+description="Standalone package for capturing video from the webcam, detecting all faces in the video and then runing the DeepFace emotional classifier on each face. The output of the emotional classfications will be written as JSON to a Unix pipe to be consumed by any other process"
 authors = ["DevonPeroutky <devonperoutky@gmail.com>"]
+repository = "https://github.com/DevonPeroutky/emotional-detection"
+readme = "README.md"
+packages = [{include = "emotional_detection/**/*.py"}]
 
 [tool.poetry.dependencies]
 python = "~3.9"
@@ -10,6 +13,7 @@ opencv-python = "^4.6.0"
 h5py = "^3.7.0"
 scipy = "^1.9.1"
 deepface = "^0.0.75"
+imutils = "^0.5.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
